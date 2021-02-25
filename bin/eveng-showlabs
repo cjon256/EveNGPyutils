@@ -1,0 +1,14 @@
+#!env python3
+import rich
+
+from EveNGPyUtils.eveng_api import EveNGAuthnticationFailure, EveNGServer
+from EveNGPyUtils.eveng_conf import server_conf
+
+eve = EveNGServer(*server_conf())
+try:
+    result = eve.list_labs()
+except EveNGAuthnticationFailure as e:
+    print(e)
+    exit(-1)
+else:
+    rich.print("\n".join(result))

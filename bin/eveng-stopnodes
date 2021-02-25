@@ -1,0 +1,22 @@
+#!env python3
+import argparse
+
+import rich
+
+from EveNGPyUtils.eveng_api import (EveNGAuthnticationFailure, EveNGServer,
+                                    EveNGTopology)
+from EveNGPyUtils.eveng_conf import server_conf
+
+parser = argparse.ArgumentParser(description='Show the nodes in the TOPOLOGY')
+parser.add_argument('topology', help='Toplogy name')
+args = parser.parse_args()
+
+eve = EveNGServer(*server_conf())
+topo = EveNGTopology(eve, args.topology)
+try:
+    result = topo.stop_all()
+except EveNGAuthnticationFailure as e:
+    print(e)
+    exit(-1)
+else:
+    rich.print(result)
