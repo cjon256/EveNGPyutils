@@ -1,10 +1,8 @@
 #!env python3
 import argparse
-
 import rich
-
-from EveNGPyUtils.eveng_api import (EveNGAuthnticationFailure, EveNGServer,
-                                    EveNGTopology)
+from EveNGPyUtils.api import EveNGAuthnticationFailure, EveNGServer, EveNGTopology
+from EveNGPyUtils.settings import server_conf
 from EveNGPyUtils.eveng_conf import server_conf
 
 parser = argparse.ArgumentParser(description='Show the nodes in the TOPOLOGY')

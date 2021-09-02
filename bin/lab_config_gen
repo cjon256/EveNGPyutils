@@ -1,0 +1,179 @@
+#!/Users/cjon/.asdf/shims/python
+
+import sys
+import re
+
+def lab_jnpr_auth_part():
+    return """\
+set system login user cjon class super-user
+set system login user cjon authentication encrypted-password "$6$gz4F8rSA$64H8yW5R9Gg7m92puaoFf5BYO.wlGbdujhowXxZstpP6866T6khhGqeYnpXxMG556ZzWC4PiW9z8Q7S.xaHwR1"
+set system login user cjon authentication ssh-rsa "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQDK31C31A3gNjwg4GeP7Ebs5mJqokqGfB1ueV6mz0z1RukTqJyxs9sQq1/ij85reZSDTeJ84tE0hDbEBhvlM+kI0ekbqJby94m8XbOJFzWJCdPwFUI1h0qRUlJmlhXmFYZzCmFgOdXrZl6ubec5OOetQc7oT5ok9nfSnppn/KoktLoep16QBtl2uU7CggLl13gtVy244h1ew2zvJkHf9jLwz+Yalu3eFvS+BeLIz+xc+K9wDSyhNMgN+Stmg7Y1X37RTUafWewKYx+hTCRLAFR8+WhV9wKLK/SIkzHHp/SCGbGjDh56Er7XslSoidmZlUKNg+G4KFdAVfzODwrIEEssB2xrkNdHj5rTaDROjUTvRI6xmGbgfI8+Ej80I2fFWABqmNrP5gcO6gW9/myONTarWYi9ELbD5sHP483OOo12aGtpc2+5n1ul0sjPq9tZiNoUJO95eRvXv3b1TlFFiU0gFfbzSCRRDrSnN4s+Et2iIKUREHWHtPkaG8UOC+nsdkTTbh63IGDmLcHVbi+c1knxIO/uM1qZbR/rGGtYJG4a77iIopNiuwmqgbS/6bMvkxAoVWhPwcmQT/jMHGZh7wpJqFi1MEzTjgjPrs9d/ZU1AmpAUYReXyW/vkthDHvAmAO42I+ZzmAfksaX3LfVvnI5QTJ4OA95dtK/9UmVviGQTw=="
+set system root-authentication encrypted-password "$6$OtJfEJIj$7de41pU5XWalhWQbziAPXyu99CVBYfNjTk0qmvFWgW9Hy/z1wMOsuN/VtcDow9zyR5FOjUqffgLdYOOdlR1il."
+set system services ssh
+"""
+
+def lab_jnpr_labfw_config():
+    return "\n# Note: reboot will be required due to switch to tranparent mode\n#\n" + \
+        lab_jnpr_auth_part() + """\
+delete system license autoupdate
+set system host-name labfw
+set system services ssh
+set security policies from-zone lab to-zone sylvan policy lab-sylvan match source-address 172.16.8.0/24
+set security policies from-zone lab to-zone sylvan policy lab-sylvan match destination-address 172.16.8.174/32
+set security policies from-zone lab to-zone sylvan policy lab-sylvan match application any
+set security policies from-zone lab to-zone sylvan policy lab-sylvan then permit
+set security policies from-zone sylvan to-zone lab policy sylvan-lab match source-address 172.16.8.174/32
+set security policies from-zone sylvan to-zone lab policy sylvan-lab match destination-address 172.16.8.0/24
+set security policies from-zone sylvan to-zone lab policy sylvan-lab match application any
+set security policies from-zone sylvan to-zone lab policy sylvan-lab then permit
+set security zones security-zone lab address-book address 172.16.8.0/24 172.16.8.0/24
+set security zones security-zone lab interfaces ge-0/0/1.0
+set security zones security-zone sylvan address-book address 172.16.8.174/32 172.16.8.174/32
+set security zones security-zone sylvan interfaces ge-0/0/0.0
+set interfaces ge-0/0/0 unit 0 family ethernet-switching interface-mode access
+set interfaces ge-0/0/0 unit 0 family ethernet-switching vlan members 99
+set interfaces ge-0/0/1 unit 0 family ethernet-switching interface-mode access
+set interfaces ge-0/0/1 unit 0 family ethernet-switching vlan members 99
+set interfaces fxp0 unit 0 family inet address 172.16.8.199/24
+set vlans V99 vlan-id 99
+set protocols l2-learning global-mode transparent-bridge
+"""
+
+def lab_jnpr_base_config(hostname, mgmt_ip, loopback_ip, mgmt_iface="fxp0"):
+    return "\n" + lab_jnpr_auth_part() + f"""\
+delete chassis auto-image-upgrade
+delete interfaces fxp0.0 family inet dhcp
+delete system processes dhcp-service
+set system host-name {hostname}
+set interfaces {mgmt_iface} unit 0 family inet address {mgmt_ip}
+set interfaces lo0 unit 0 family inet address {loopback_ip}/32
+set routing-options router-id {loopback_ip}
+"""
+
+def lab_xrv9k_base_config(hostname, mgmt_ip, loopback_ip):
+    secret = '$1$hLVQ$nBvhMUG9aCnDDdeJcl0UH0'
+    return f"""\
+# nned to setup admin user using Cisco123 password
+hostname {hostname}
+domain name lab.local
+username cjon
+ group root-lr
+ group cisco-support
+ secret 5 {secret}
+!
+interface Loopback0
+ ipv4 address {loopback_ip}
+!
+interface MgmtEth0/RP0/CPU0/0
+ ipv4 address {mgmt_ip}
+ no shutdown
+!
+lldp
+ timer 10
+ holdtime 30
+!
+ssh client source-interface MgmtEth0/RP0/CPU0/0
+ssh server enable cipher aes-cbc 3des-cbc
+ssh server logging
+ssh server session-limit 5
+ssh server v2
+ssh server vrf mgmt
+
+# after config do the following to enable ssh
+crypto key generate rsa general-keys
+# and then to enable keys do 
+scp ~/.ssh/eve-nops.pub.b64 {hostname}:disk0:/
+ssh {hostname}
+crypto key import authentication rsa disk0:/eve-nops.pub.b64
+"""
+
+def lab_jnpr_switch_config(n):
+    info = """
+    XXX need to
+    + delete interfaces
+    + delete system root-authentication
+    + delete system login user vagrant
+    + set interfaces em1 unit 0 family inet address 169.254.0.2/24
+
+    - delete chassis auto-image-upgrade
+    - delete interfaces fxp0.0 family inet dhcp
+    """
+    hostname = f"sw{n}"
+    mgmt_ip = f"172.16.8.{n+200}/24"
+    loopback_ip = f"{200+n}.{200+n}.{200+n}.{200+n}"
+    return info + lab_jnpr_base_config(hostname, mgmt_ip, loopback_ip, "em0")
+
+def lab_jnpr_router_config(n):
+    hostname = f"r{n}"
+    mgmt_ip = f"172.16.8.{n+20}/24"
+    loopback_ip = f"{n}.{n}.{n}.{n}"
+    return lab_jnpr_base_config(hostname, mgmt_ip, loopback_ip)
+
+def lab_xrv9k_router_config(n):
+    hostname = f"r{n}"
+    mgmt_ip = f"172.16.8.{n+20} 255.255.255.0"
+    loopback_ip = f"{n}.{n}.{n}.{n} 255.255.255.255"
+    return lab_xrv9k_base_config(hostname, mgmt_ip, loopback_ip)
+
+
+def usage():
+    print('You must specify a router number must be between 1 and 20')
+    exit(-1)
+
+NUMBER_REGEX = re.compile("[1-9][0-9]*")
+
+import cmd
+
+class EveNG_LabConfigGen(cmd.Cmd):
+    intro = "Generate base configs for lab devices. Type 'help' or '?' to list commands"
+    prompt = "LabConfig: "
+    file = None
+
+    def do_xrv9k(self,arg):
+        ERR = "Router number must be between 1 and 20"
+        try:
+            rtr_num = int(arg)
+        except ValueError:
+            print(ERR)
+        else:
+            if 0 < rtr_num < 21:
+                print(lab_xrv9k_router_config(rtr_num))
+            else:
+                print(ERR)
+
+    def do_mx(self,arg):
+        ERR = "Router number must be between 1 and 20"
+        try:
+            rtr_num = int(arg)
+        except ValueError:
+            print(ERR)
+        else:
+            if 0 < rtr_num < 21:
+                print(lab_jnpr_router_config(rtr_num))
+            else:
+                print(ERR)
+
+    def do_qfx(self,arg):
+        ERR = "Switch number must be between 1 and 16"
+        try:
+            sw_num = int(arg)
+        except ValueError:
+            print(ERR)
+        else:
+            if 0 < sw_num < 17:
+                print(lab_jnpr_switch_config(sw_num))
+            else:
+                print(ERR)
+
+    def do_labfw(self,arg):
+        print(lab_jnpr_labfw_config())
+
+    def do_quit(self, arg):
+        return True
+
+    def do_EOF(self, arg):
+        print("")
+        return True
+
+if __name__ == '__main__':
+    EveNG_LabConfigGen().cmdloop()

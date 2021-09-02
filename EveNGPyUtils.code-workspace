@@ -1,0 +1,36 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"python.pythonPath": "/Users/cjon/.virtualenvs/EveNGPyutils/bin/python"
+		"editor.formatOnSave": true,
+		"python.formatting.provider": "autopep8",
+		"python.formatting.autopep8Path": "/Users/cjon/.virtualenvs/Nornir_Junos/bin/autopep8",
+		"python.formatting.autopep8Args": [
+			"--max-line-length",
+			"120",
+			"--aggressive",
+		],
+		"python.linting.lintOnSave": true,
+		"python.linting.enabled": true,
+		// if using pylint
+		"python.linting.pylintEnabled": true,
+		"python.linting.pylintPath": "/Users/cjon/.virtualenvs/Nornir_Junos/bin/pylint",
+		"python.linting.pylintArgs": [
+			"--load-plugins",
+			"pylint_django", // only if you are using django framework
+			"--enable=W0614",
+			"--enable= W0611"
+		],
+		"editor.codeActionsOnSave": {
+			"source.organizeImports": true
+		},
+		"[python]": {
+			"editor.tabSize": 4
+		},
+	}
+}
+########################################################################################################################

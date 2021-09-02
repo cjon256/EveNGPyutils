@@ -1,8 +1,7 @@
 #!env python3
 import rich
-
-from EveNGPyUtils.eveng_api import EveNGAuthnticationFailure, EveNGServer
-from EveNGPyUtils.eveng_conf import server_conf
+from EveNGPyUtils.api import EveNGAuthnticationFailure, EveNGServer
+from EveNGPyUtils.settings import server_conf
 
 eve = EveNGServer(*server_conf())
 try:
